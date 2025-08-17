@@ -21,7 +21,7 @@ resources:
     memory: "500Mi"
 
 config:
-  VITE_BASE_URL: "https://api.skillsharp-sk.icu"
+  VITE_BASE_URL: "https://api.bookiepal.icu.icu"
   VITE_GOOGLE_CLIENT_ID: "42685591177-0vlgsmhfu1mjdk5qeg4abskoq25dns15.apps.googleusercontent.com"
 
 configMapName: client-config

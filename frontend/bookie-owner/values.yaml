@@ -21,6 +21,6 @@ resources:
     memory: "500Mi"
 
 config:
-  VITE_BASE_URL: "https://api.skillsharp-sk.icu"
+  VITE_BASE_URL: "https://api.bookiepal.icu"
 
 configMapName: owner-config
