@@ -1,0 +1,21 @@
+replicaCount: 1
+
+image:
+  repository: vochitrung/sms-pro
+  tag: latest
+  pullPolicy: Always
+
+service:
+  name: sms
+  ports:
+    rest:
+      number: 3000
+      external: 30019
+
+resources:
+  limits:
+    cpu: "200m"
+    memory: "500Mi"
+  requests:
+    cpu: "200m"
+    memory: "500Mi"

@@ -1,0 +1,21 @@
+replicaCount: 1
+
+image:
+  repository: vochitrung/gate-pro
+  tag: latest
+  pullPolicy: Always
+
+service:
+  name: gate
+  ports:
+    rest:
+      number: 8081
+      external: 30015
+
+resources:
+  limits:
+    cpu: "100m"
+    memory: "256Mi"
+  requests:
+    cpu: "100m"
+    memory: "128Mi"

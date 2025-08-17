@@ -1,0 +1,26 @@
+replicaCount: 1
+
+image:
+  repository: vochitrung/bookie-owner-pro
+  tag: latest
+  pullPolicy: Always
+
+service:
+  name: bookie-owner
+  ports:
+    rest:
+      number: 4173
+      external: 30002
+
+resources:
+  limits:
+    cpu: "100m"
+    memory: "500Mi"
+  requests:
+    cpu: "100m"
+    memory: "500Mi"
+
+config:
+  VITE_BASE_URL: "https://api.skillsharp-sk.icu"
+
+configMapName: owner-config

@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Values.service.name }}
+
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.service.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.service.name }}
+      annotations:
+        image-digest: ""  # Annotation sẽ được cập nhật với SHA mới nhất từ Docker Hub
+    spec:
+
+      # hostNetwork: true  # Thêm dòng này để bật host network
+      # dnsPolicy: ClusterFirstWithHostNet  # Đảm bảo DNS vẫn hoạt động đúng
+
+      initContainers:
+      containers:
+        - name: {{ .Values.service.name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          
+          {{- if or .Values.service.ports.rest .Values.service.ports.grpc }}
+          ports:
+            {{- if .Values.service.ports.rest }}
+            - containerPort: {{ .Values.service.ports.rest.number }}
+              name: rest
+            {{- end }}
+            {{- if .Values.service.ports.grpc }}
+            - containerPort: {{ .Values.service.ports.grpc.number }}
+              name: grpc
+            {{- end }}
+            {{- if .Values.service.ports.webhook }}
+            - containerPort: {{ .Values.service.ports.grpc.number }}
+              name: webhook
+            {{- end }}
+          {{- end }}
+
+          envFrom:
+            {{- if .Values.configMapName }}
+            - configMapRef:
+                name: {{ .Values.configMapName }}
+            {{- end }}
+            {{- if .Values.secretName }}
+            - secretRef:
+                name: {{ .Values.secretName }}
+            {{- end }}
+
+          resources:
+            limits:
+              cpu: "{{ .Values.resources.limits.cpu }}"
+              memory: "{{ .Values.resources.limits.memory }}"
+            requests:
+              cpu: "{{ .Values.resources.requests.cpu }}"
+              memory: "{{ .Values.resources.requests.memory }}"

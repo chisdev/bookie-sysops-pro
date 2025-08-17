@@ -1,0 +1,184 @@
+name: Build & Deploy Updated Services
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      changed_frontend: ${{ steps.filter.outputs.changed_frontend }}
+      changed_backend: ${{ steps.filter.outputs.changed_backend }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find changed services
+        id: filter
+        run: |
+          FRONTEND=$(git diff --name-only HEAD~1 HEAD | grep '^frontend/'| grep -v '/values\.yaml$' | cut -d '/' -f2 | sort | uniq | jq -R -s -c 'split("\n")[:-1]' || echo '[]')
+          BACKEND=$(git diff --name-only HEAD~1 HEAD | grep '^backend/' | grep -v '/values\.yaml$' | cut -d '/' -f2 | sort | uniq | jq -R -s -c 'split("\n")[:-1]' || echo '[]')
+          echo "changed_frontend=$FRONTEND" >> $GITHUB_OUTPUT
+          echo "changed_backend=$BACKEND" >> $GITHUB_OUTPUT
+          echo "Debug: changed_frontend=$FRONTEND"
+          echo "Debug: changed_backend=$BACKEND"
+
+      - name: Debug outputs
+        run: |
+          echo "changed_frontend: ${{ steps.filter.outputs.changed_frontend }}"
+          echo "changed_backend: ${{ steps.filter.outputs.changed_backend }}"
+
+  build-and-push-frontend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.changed_frontend != '[]'
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.changed_frontend) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build frontend Docker image
+        run: |
+          docker build -f frontend/${{ matrix.service }}/build/Dockerfile \
+            -t ${{ secrets.DOCKER_USERNAME }}/$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')-pro:latest \
+            frontend/${{ matrix.service }}
+
+      - name: Push frontend image
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          docker push ${{ secrets.DOCKER_USERNAME }}/$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')-pro:latest
+
+  build-and-push-backend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.changed_backend != '[]'
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.changed_backend) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend Docker image
+        run: |
+          docker build -f backend/${{ matrix.service }}/build/Dockerfile \
+            -t ${{ secrets.DOCKER_USERNAME }}/$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')-pro:latest \
+            backend/${{ matrix.service }}
+
+      - name: Push backend image
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          docker push ${{ secrets.DOCKER_USERNAME }}/$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')-pro:latest
+
+  restart-deployments-backend:
+    needs:
+      - detect-changes
+      - build-and-push-backend
+    runs-on: self-hosted
+    steps:
+      - name: Khởi động lại triển khai Kubernetes cho Backend
+        if: ${{ needs.detect-changes.outputs.changed_backend != '[]' && needs.build-and-push-backend.result == 'success' }}
+        run: |
+          for SERVICE in $(echo '${{ needs.detect-changes.outputs.changed_backend }}' | jq -r '.[]'); do
+            SERVICE_NAME=$(echo $SERVICE | tr '[:upper:]' '[:lower:]')
+            echo "Đang khởi động lại triển khai backend: $SERVICE_NAME"
+            kubectl rollout restart deployment $SERVICE_NAME -n ${{ secrets.KUBE_NAMESPACE }}
+          done
+
+      - name: Kiểm tra trạng thái pod
+        run: kubectl get pods -o wide
+
+  restart-deployments-frontend:
+    needs:
+      - detect-changes
+      - build-and-push-frontend
+    runs-on: self-hosted
+    steps:
+      - name: Khởi động lại triển khai Kubernetes cho Frontend
+        if: ${{ needs.detect-changes.outputs.changed_frontend != '[]' && needs.build-and-push-frontend.result == 'success' }}
+        run: |
+          for SERVICE in $(echo '${{ needs.detect-changes.outputs.changed_frontend }}' | jq -r '.[]'); do
+            SERVICE_NAME=$(echo $SERVICE | tr '[:upper:]' '[:lower:]')
+            echo "Đang khởi động lại triển khai frontend: $SERVICE_NAME"
+            kubectl rollout restart deployment $SERVICE_NAME -n ${{ secrets.KUBE_NAMESPACE }}
+          done
+
+      - name: Kiểm tra trạng thái pod
+        run: kubectl get pods -o wide
+
+  sync-helm-deployments:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: pull newesrt helm charts
+        working-directory: ${{ runner.home }}/home/bookiet809/bookie-sysops-stg
+        run: |
+          git pull origin main
+
+      - name: Detect added or removed Helm deployments
+        working-directory: ${{ runner.home }}/home/bookiet809/bookie-sysops-stg
+        id: helm-diff
+        run: |
+          echo "🔍 Fetching diff from HEAD~1 to HEAD"
+          git fetch origin main --depth=2
+
+          echo "📄 All changed files (HEAD~1 vs HEAD):"
+          git diff --name-status HEAD~1 HEAD > all_changes.txt || true
+          cat all_changes.txt
+
+          echo "🎯 Filtering only files ending with /values.yaml:"
+          grep -E '^.*\/values\.yaml$' all_changes.txt > changes.txt || true
+          cat changes.txt
+
+          echo "🟢 Added or Modified Helm value files:"
+          grep -E '^(A|M)' changes.txt | cut -f2 > added_files.txt || true
+          cat added_files.txt || echo "(none)"
+
+          echo "🔴 Deleted Helm value files:"
+          grep -E '^D' changes.txt | cut -f2 > deleted_files.txt || true
+          cat deleted_files.txt || echo "(none)"
+
+      - name: Helm install added services
+        working-directory: ${{ runner.home }}/home/bookiet809/bookie-sysops-stg
+        run: |
+          echo "📂 Contents of added_files.txt:"
+          cat added_files.txt || echo "(empty)"
+
+          if [ -s added_files.txt ]; then
+            while read filepath; do
+              if [ -n "$filepath" ]; then
+                chart=$(echo "$filepath" | cut -d'/' -f1)
+                service=$(echo "$filepath" | cut -d'/' -f2)
+                chart_path="./helm-chart"
+                echo "🚀 Installing Helm release: $service"
+                echo "📦 Chart path: $chart_path"
+                echo "📝 Values file: $filepath"
+                helm upgrade --install "$service" "$chart_path" \
+                  -f "$filepath" \
+                  -n "${{ secrets.KUBE_NAMESPACE }}" --create-namespace
+              fi
+            done < added_files.txt
+          else
+            echo "✅ No services to install."
+          fi
+
+      - name: Helm uninstall removed services
+        run: |
+          if [ -s deleted.txt ]; then
+            while read service; do
+              if [ -n "$service" ]; then
+                echo "Uninstalling Helm release: $service"
+                helm uninstall $service -n ${{ secrets.KUBE_NAMESPACE }}
+              fi
+            done < deleted.txt
+          else
+            echo "✅ No services to uninstall."
+          fi

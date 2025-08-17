@@ -1,0 +1,35 @@
+replicaCount: 1
+
+image:
+  repository: vochitrung/review-pro
+  tag: latest
+  pullPolicy: Always
+
+service:
+  name: review
+  ports:
+    rest:
+      number: 8081
+    grpc:
+      number: 8080
+
+resources:
+  limits:
+    cpu: "50m"
+    memory: "100Mi"
+  requests:
+    cpu: "50m"
+    memory: "100Mi"
+
+config:
+  DATABASE_AUTH_METHOD: "2"
+  DATABASE_HOST: "34.42.179.137"
+  DATABASE_NAME: "bookie_review"
+  DATABASE_USERNAME: "root"
+  DATABASE_AWS_REGION: "a"
+
+secret:
+  DATABASE_PASSWORD: "Bookie@123"
+
+configMapName: review-config
+secretName: review-secret

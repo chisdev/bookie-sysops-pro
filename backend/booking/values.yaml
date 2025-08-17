@@ -1,0 +1,42 @@
+replicaCount: 1
+
+image:
+  repository: vochitrung/booking-pro
+  tag: latest
+  pullPolicy: Always
+
+service:
+  name: booking
+  ports:
+    rest:
+      number: 3000
+
+resources:
+  limits:
+    cpu: "50m"
+    memory: "256Mi"
+  requests:
+    cpu: "50m"
+    memory: "128Mi"
+
+config:
+  DB_HOST: "10.166.0.2"
+  DB_PORT: "3306"
+  DB_NAME: "bookie_booking"
+  DB_USER: "root"
+  DATABASE_URL: "mysql://root:Bookie@123@10.166.0.2:3306/bookie_booking"
+  PORT: 3000
+  BACKEND_API_URL: "https://api.skillsharp-sk.icu"
+  REDIS_HOST: "10.166.0.2"
+  REDIS_PORT: 6379
+  MAILER_USER: "hungtruongvinh66@gmail.com"
+  FRONTEND_CMS_URL: "https://client.skillsharp-sk.icu"
+  FRONTEND_CLIENT_URL: "https://client.skillsharp-sk.icu"
+
+secret:
+  DB_PASSWORD: "Bookie@123"
+  MAILER_PASS: "wuyc lmms hhsi fyks"
+  REDIS_PASSWORD: "Bookie@123"
+
+configMapName: booking-config
+secretName: booking-secret
