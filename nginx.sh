@@ -56,7 +56,7 @@ server {
 }
 
 server {
-    listen 443 ssl;
+    listen 443 ssl http2;
     server_name $DOMAIN;
 
     ssl_certificate     $CERT_DEST;
