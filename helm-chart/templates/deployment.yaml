@@ -17,10 +17,6 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/values.yaml") . | sha256sum }}
     spec:
-
-      # hostNetwork: true  # Thêm dòng này để bật host network
-      # dnsPolicy: ClusterFirstWithHostNet  # Đảm bảo DNS vẫn hoạt động đúng
-
       initContainers:
       containers:
         - name: {{ .Values.service.name }}
