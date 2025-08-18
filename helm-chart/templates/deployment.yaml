@@ -15,7 +15,7 @@ spec:
       labels:
         app: {{ .Values.service.name }}
       annotations:
-        image-digest: ""  # Annotation sẽ được cập nhật với SHA mới nhất từ Docker Hub
+        checksum/config: {{ include (print $.Template.BasePath "/values.yaml") . | sha256sum }}
     spec:
 
       # hostNetwork: true  # Thêm dòng này để bật host network
