@@ -15,7 +15,7 @@ spec:
       labels:
         app: {{ .Values.service.name }}
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/values.yaml") . | sha256sum }}
+        restartTimestamp: "{{ now | unixEpoch }}"
     spec:
       initContainers:
       containers:
