@@ -1,4 +1,4 @@
-FROM vochitrung/bookie-owner:v1.0.10
+FROM vochitrung/bookie-owner:v1.0.13
 
 WORKDIR /app
 

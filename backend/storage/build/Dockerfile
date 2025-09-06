@@ -1,4 +1,4 @@
-FROM vochitrung/storage:v1.0.2
+FROM vochitrung/storage:v1.0.1
 
 WORKDIR /app
 
