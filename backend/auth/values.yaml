@@ -35,6 +35,7 @@ config:
   FRONTEND_CMS_URL: "https://bookiepal.icu"
   FRONTEND_CLIENT_URL: "https://bookiepal.icu"
   FRONTEND_OWNER_URL: "https://host.bookiepal.icu"
+  API_URL: "https://api.bookiepal.icu"
 
 secret:
   DB_PASSWORD: "Bookie@123"
